@@ -30,6 +30,7 @@ function generateScript() {
     script += `add comment=z chain=prerouting connection-mark=("WAN$i_conn") src-address=${sourceAddress} action=mark-routing new-routing-mark=("WAN$i")}\n\n`;
   
     script += '/ip route\n';
+    script += `:for i from=1 to=${wanCount} do={\n`;
     script += `add dst-address=0.0.0.0/0 gateway=("WAN$i") distance=("$i") check-gateway=ping}\n\n`;
   
     script += '/ip firewall nat\n';
