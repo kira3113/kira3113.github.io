@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>MikroTik Hotspot User Generator</title>
     <style>
@@ -81,23 +82,72 @@
             cursor: pointer;
             margin-top: 10px;
         }
+
+        .notification {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: #4CAF50;
+            /* Green background color */
+            color: white;
+            text-align: center;
+            padding: 10px;
+            font-size: 16px;
+            z-index: 9999;
+            /* Ensure it's above other elements */
+            display: none;
+            /* Initially hidden */
+        }
+
+        .success {
+            background-color: #4CAF50;
+            /* Green background color for success */
+        }
+
+        .error {
+            background-color: #f44336;
+            /* Red background color for error */
+        }
     </style>
 </head>
+
 <body>
     <h1>MikroTik Hotspot User Generator</h1>
+    <div id="notification" class="notification"></div>
+
     <div class="container">
         <form id="userGeneratorForm">
             <label for="baseName">Base Name for Users:</label>
             <input type="text" id="baseName" placeholder="Enter base name" value="User" required><br><br>
 
             <label for="ip">Base IP Address (e.g., 192.168.10):</label>
-            <input type="text" id="ip" pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}$" placeholder="Enter base IP" required><br><br>
+            <input type="text" id="ip" pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}$" placeholder="Enter base IP"
+                required><br><br>
 
             <label for="comment">Common Comment for Users:</label>
             <input type="text" id="comment" placeholder="Enter common comment" value="Guest User" required><br><br>
 
             <label for="numUsers">Number of Users:</label>
-            <input type="number" id="numUsers" min="1" placeholder="Enter the number of users" value="5" required><br><br>
+            <input type="number" id="numUsers" min="1" placeholder="Enter the number of users" value="5"
+                required><br><br>
+            <!-- Add these input fields to your form -->
+            <label for="passwordLength">Password Length:</label>
+            <input type="number" id="passwordLength" min="1" placeholder="Enter password length" value="8"
+                required><br><br>
+
+            <label>Character Types:</label><br>
+            <input type="checkbox" id="uppercaseCheckbox" checked>
+            <label for="uppercaseCheckbox">Uppercase</label>
+
+            <input type="checkbox" id="lowercaseCheckbox" checked>
+            <label for="lowercaseCheckbox">Lowercase</label>
+
+            <input type="checkbox" id="numbersCheckbox" checked>
+            <label for="numbersCheckbox">Numbers</label>
+
+            <input type="checkbox" id="specialCharsCheckbox" checked>
+            <label for="specialCharsCheckbox">Special Characters</label><br><br>
 
             <button type="button" onclick="generateUsers()">Generate Users</button>
         </form>
@@ -113,13 +163,24 @@
     </div>
 
     <script>
-        function generateRandomPassword(length = 3) {
-            const charset = 'abcdef123456789';
-            let password = '';
+        function generateRandomPassword(length, includeUppercase, includeLowercase, includeNumbers, includeSpecialChars) {
+            const charset = [];
+            if (includeUppercase) charset.push('ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+            if (includeLowercase) charset.push('abcdefghijklmnopqrstuvwxyz');
+            if (includeNumbers) charset.push('0123456789');
+            if (includeSpecialChars) charset.push('!@#$%^&*()_+[]{}|;:,.<>?');
 
+            if (charset.length === 0) {
+                // Handle the case when no character types are selected
+                return '';
+            }
+
+            let password = '';
             for (let i = 0; i < length; i++) {
-                const randomIndex = Math.floor(Math.random() * charset.length);
-                password += charset[randomIndex];
+                const randomCharSetIndex = Math.floor(Math.random() * charset.length);
+                const selectedCharSet = charset[randomCharSetIndex];
+                const randomCharIndex = Math.floor(Math.random() * selectedCharSet.length);
+                password += selectedCharSet[randomCharIndex];
             }
 
             return password;
@@ -127,8 +188,13 @@
 
         function generateUsers() {
             const baseName = document.getElementById('baseName').value;
-            const baseIP = document.getElementById('ip').value;
-            const commonComment = document.getElementById('comment').value;
+            const baseIP = document.getElementById('ip').value; // Retrieve baseIP from the input field
+            const commonComment = document.getElementById('comment').value || "Guest User";
+            const passwordLength = document.getElementById('passwordLength').value;
+            const includeUppercase = document.getElementById('uppercaseCheckbox').checked;
+            const includeLowercase = document.getElementById('lowercaseCheckbox').checked;
+            const includeNumbers = document.getElementById('numbersCheckbox').checked;
+            const includeSpecialChars = document.getElementById('specialCharsCheckbox').checked;
 
             // Improved input validation for Base IP Address
             if (!isValidIP(baseIP)) {
@@ -143,7 +209,7 @@
             const userData = [];
 
             for (let i = 1; i <= numUsers; i++) {
-                const randomPassword = generateRandomPassword(3); // Generate a stronger password
+                const randomPassword = generateRandomPassword(passwordLength, includeUppercase, includeLowercase, includeNumbers, includeSpecialChars); // Use customized password settings
                 const userIP = `${baseIP}.${i}`;
                 const userName = `${baseName}${i}`;
                 generatedCommands += ` add comment=${commonComment} address=${userIP} name=${userName} password=${randomPassword}\n`;
@@ -155,6 +221,10 @@
             document.getElementById('generatedCommands').textContent = generatedCommands;
             // Store user data for Excel export
             localStorage.setItem('userData', JSON.stringify(userData));
+
+            // Display a success message
+            const successMessage = "Users generated successfully!";
+            showNotification(successMessage, 'success');
         }
 
         function copyToClipboard() {
@@ -165,13 +235,17 @@
             textArea.select();
             document.execCommand('copy');
             document.body.removeChild(textArea);
-            alert('Generated commands copied to clipboard.');
+            /// Display a success message
+            const successMessage = "Generated commands copied to clipboard!";
+            showNotification(successMessage, 'success');
+            //alert('Generated commands copied to clipboard.');
         }
 
         function exportToExcel() {
             const userData = JSON.parse(localStorage.getItem('userData'));
             if (!userData || userData.length === 0) {
-                alert("No user data to export.");
+                const errorMessage = "No user data to export.";
+                showNotification(errorMessage, 'error');
                 return;
             }
 
@@ -188,18 +262,36 @@
             const currentDate = new Date();
             const formattedDate = currentDate.toLocaleDateString().replace(/\//g, '-');
             const numUsers = userData.length;
-            const commonComment = userData[0].comment || "Guest User"; // Assuming the first user's comment applies to all
+            const commonComment = document.getElementById('comment').value || "Guest User";
             const fileName = `User_Data_${formattedDate}_${numUsers}_Users_${commonComment}.xlsx`;
+
 
             // Save the file with the specified filename
             XLSX.writeFile(wb, fileName);
+
+            /// Display a success message
+            const successMessage = "Data exported to Excel successfully!";
+            showNotification(successMessage, 'success');
         }
 
         function isValidIP(ip) {
             const ipPattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}$/;
             return ipPattern.test(ip);
         }
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add(type);
+            notification.style.display = 'block';
+
+            // Automatically hide the notification after a few seconds (adjust as needed)
+            setTimeout(() => {
+                notification.style.display = 'none';
+                notification.classList.remove(type);
+            }, 3000); // 3 seconds
+        }
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.4/xlsx.full.min.js"></script>
 </body>
+
 </html>
