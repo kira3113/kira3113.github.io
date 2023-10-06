@@ -28,8 +28,8 @@ function generateScript() {
   }
 
   // Add input and output rules with comments
-  addInputRule('Comment for input rule');
-  addOutputRule('Comment for output rule');
+  addInputRule('z');
+  addOutputRule('z');
 
   // Add rules for prerouting
   script += '/ip firewall mangle\n';
