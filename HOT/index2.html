@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>MikroTik Hotspot User Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.15/dist/tailwind.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <div class="bg-blue-500 text-white text-center py-4 font-bold text-3xl mb-6 rounded-t-lg">
+            MikroTik Hotspot User Generator
+        </div>
+
+        <div class="bg-white p-8 rounded-b-lg shadow-lg">
+            <form id="userGeneratorForm" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="baseName" class="block font-bold">Base Name for Users:</label>
+                        <input type="text" id="baseName" placeholder="Enter base name" value="User" required
+                            class="w-full px-3 py-2 border rounded">
+                    </div>
+                    <div>
+                        <label for="ip" class="block font-bold">Base IP Address (e.g., 192.168.10):</label>
+                        <input type="text" id="ip" pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}$"
+                            placeholder="Enter base IP" required class="w-full px-3 py-2 border rounded">
+                    </div>
+                </div>
+
+                <label for="comment" class="block font-bold">Common Comment for Users:</label>
+                <input type="text" id="comment" placeholder="Enter common comment" value="Guest User" required
+                    class="w-full px-3 py-2 border rounded">
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="startNumber" class="block font-bold">Start Number:</label>
+                        <input type="number" id="startNumber" min="1" placeholder="Enter the start number" value="1"
+                            required class="w-full px-3 py-2 border rounded">
+                    </div>
+                    <div>
+                        <label for="endNumber" class="block font-bold">End Number:</label>
+                        <input type="number" id="endNumber" min="1" placeholder="Enter the end number" value="5"
+                            required class="w-full px-3 py-2 border rounded">
+                    </div>
+                </div>
+
+                <div id="userCount" class="font-bold">Number of Users: 5</div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="passwordLength" class="block font-bold">Password Length:</label>
+                        <input type="number" id="passwordLength" min="1" placeholder="Enter password length" value="8"
+                            required class="w-full px-3 py-2 border rounded">
+                    </div>
+                    <div>
+                        <label class="block font-bold">Character Types:</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="checkbox" id="uppercaseCheckbox" checked>
+                            <label for="uppercaseCheckbox">Uppercase</label>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <input type="checkbox" id="lowercaseCheckbox" checked>
+                            <label for="lowercaseCheckbox">Lowercase</label>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <input type="checkbox" id="numbersCheckbox" checked>
+                            <label for="numbersCheckbox">Numbers</label>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <input type="checkbox" id="specialCharsCheckbox" checked>
+                            <label for="specialCharsCheckbox">Special Characters</label>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" onclick="generateUsers()"
+                    class="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-700">Generate Users</button>
+            </form>
+
+            <h2 class="text-2xl font-bold mt-6">Generated User Commands:</h2>
+            <pre id="generatedCommands" class="p-3 border bg-gray-200 rounded"></pre>
+
+            <div class="flex space-x-4 mt-4">
+                <button class="copy-button bg-green-500 text-white py-2 px-4 rounded hover:bg-green-700"
+                    onclick="copyToClipboard()">Copy to Clipboard</button>
+                <button class="export-button bg-blue-500 text-white py-2 px-4 rounded hover-bg-blue-700"
+                    onclick="exportToExcel()">Export to Excel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- The notification container -->
+    <div id="notification" class="hidden fixed bottom-0 left-0 w-full p-4 text-center text-white">
+    </div>
+
+    <script>
+        function generateRandomPassword(length, includeUppercase, includeLowercase, includeNumbers, includeSpecialChars) {
+            const charset = [];
+            if (includeUppercase) charset.push('ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+            if (includeLowercase) charset.push('abcdefghijklmnopqrstuvwxyz');
+            if (includeNumbers) charset.push('0123456789');
+            if (includeSpecialChars) charset.push('!@#$%^&*()_+[]{}|;:,.<>?');
+
+            if (charset.length === 0) {
+                return '';
+            }
+
+            let password = '';
+            for (let i = 0; i < length; i++) {
+                const randomCharSetIndex = Math.floor(Math.random() * charset.length);
+                const selectedCharSet = charset[randomCharSetIndex];
+                const randomCharIndex = Math.floor(Math.random() * selectedCharSet.length);
+                password += selectedCharSet[randomCharIndex];
+            }
+
+            return password;
+        }
+
+        function generateUsers() {
+            const baseName = document.getElementById('baseName').value;
+            const baseIP = document.getElementById('ip').value;
+            const commonComment = document.getElementById('comment').value || "Guest User";
+            const passwordLength = document.getElementById('passwordLength').value;
+            const includeUppercase = document.getElementById('uppercaseCheckbox').checked;
+            const includeLowercase = document.getElementById('lowercaseCheckbox').checked;
+            const includeNumbers = document.getElementById('numbersCheckbox').checked;
+            const includeSpecialChars = document.getElementById('specialCharsCheckbox').checked;
+
+            const startNumber = parseInt(document.getElementById('startNumber').value, 10);
+            const endNumber = parseInt(document.getElementById('endNumber').value, 10);
+
+            if (!isValidIP(baseIP)) {
+                alert("Please enter a valid base IP address in the format 'xxx.xxx.xxx'.");
+                return;
+            }
+
+            if (startNumber > endNumber) {
+                alert("Start number cannot be greater than end number.");
+                return;
+            }
+
+            let generatedCommands = `/ip hotspot user\n`;
+            const userData = [];
+
+            for (let i = startNumber; i <= endNumber; i++) {
+                const randomPassword = generateRandomPassword(passwordLength, includeUppercase, includeLowercase, includeNumbers, includeSpecialChars);
+                const userIP = `${baseIP}.${i}`;
+                const userName = `${baseName}${i}`;
+                generatedCommands += ` add comment=${commonComment} address=${userIP} name=${userName} password=${randomPassword}\n`;
+
+                userData.push({ "Name": userName, "Password": randomPassword });
+            }
+
+            document.getElementById('generatedCommands').textContent = generatedCommands;
+            localStorage.setItem('userData', JSON.stringify(userData));
+
+            const successMessage = "Users generated successfully!";
+            showNotification(successMessage, 'success');
+        }
+
+        function copyToClipboard() {
+            const generatedCommands = document.getElementById('generatedCommands');
+            const textArea = document.createElement('textarea');
+            textArea.value = generatedCommands.textContent;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+
+            const successMessage = "Generated commands copied to clipboard!";
+            showNotification(successMessage, 'success');
+        }
+
+        function exportToExcel() {
+            const userData = JSON.parse(localStorage.getItem('userData'));
+            if (!userData || userData.length === 0) {
+                const errorMessage = "No user data to export.";
+                showNotification(errorMessage, 'error');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(userData);
+            XLSX.utils.book_append_sheet(wb, ws, "Users");
+
+            const currentDate = new Date();
+            const formattedDate = currentDate.toLocaleDateString().replace(/\//g, '-');
+            const numUsers = userData.length;
+            const commonComment = document.getElementById('comment').value || "Guest User";
+            const fileName = `User_Data_${formattedDate}_${numUsers}_Users_${commonComment}.xlsx`;
+
+            XLSX.writeFile(wb, fileName);
+
+            const successMessage = "Data exported to Excel successfully!";
+            showNotification(successMessage, 'success');
+        }
+
+        function isValidIP(ip) {
+            const ipPattern = /^\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+            return ipPattern.test(ip);
+        }
+
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.remove('hidden');
+            notification.className = 'fixed bottom-0 left-0 w-full p-4 text-center text-white ' + type;
+            setTimeout(() => {
+                notification.classList.add('hidden');
+            }, 3000); // 3 seconds
+        }
+
+        // Event listeners for input fields
+        document.getElementById('startNumber').addEventListener('input', updateNumberOfUsers);
+        document.getElementById('endNumber').addEventListener('input', updateNumberOfUsers);
+
+        function updateNumberOfUsers() {
+            const startNumber = parseInt(document.getElementById('startNumber').value, 10);
+            const endNumber = parseInt(document.getElementById('endNumber').value, 10);
+
+            // Calculate and update the number of users
+            const numberOfUsers = endNumber - startNumber + 1;
+            document.getElementById('userCount').textContent = `Number of Users: ${numberOfUsers}`;
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.4/xlsx.full.min.js"></script>
+</body>
+
+</html>
